@@ -1,4 +1,4 @@
-# PowderCore: Universal Physics Engine
+# PowderCore&trade;: Universal Physics Engine
 > An engine extracted from my projects
 
 See the [GameHub](https://github.com/RobertFlexx/Powder-Sandbox-GameHub) for detailed information on the editions themselves.
