@@ -1,5 +1,5 @@
 # PowderCore&trade;: Universal Physics Engine
-> An engine extracted from my projects
+> A homemade, physics engine extracted from my projects, to make this an independent, scalable, integrable, library made in Rust for stability, and memory safety.
 
 See the [GameHub](https://github.com/RobertFlexx/Powder-Sandbox-GameHub) for detailed information on the editions themselves.
 
@@ -19,7 +19,7 @@ Later, I rewrote the project in **C#** and **Rust** to test whether the strange 
 
 ---
 
-## Core Principles (and why it was made in Rust)
+## Core Principles & And why i chose Rust
 
 1. **Consistency**
    Identical behavior across all platforms.
@@ -33,9 +33,15 @@ Later, I rewrote the project in **C#** and **Rust** to test whether the strange 
 4. **Emergent Chaos**
    Physics should feel alive and unpredictable in the best way.
 
+5. **Memory-safety aspects**
+   Prevents common memory-driven bugs, fast performance with automatic garbage-       collection, unlike other programming languages.
+
+6. **Elegant Flow**
+   Rust proposes a very elegant way-of-flow in the language, hence making it          better to read, and easier to maintain over time.
+
 ---
 
-## Engine Architecture
+## Engine Architecture (Basics)
 
 PowderCore operates on a **cellular automata model**, where each cell (or “particle”) is an independent unit with its own properties and update rules.
 
@@ -53,7 +59,7 @@ PowderCore operates on a **cellular automata model**, where each cell (or “par
 
 ## Integration Examples
 
-PowderCore is designed to integrate almost anywhere. The Rust backend exposes a clean, minimal C API that can be consumed from almost any environment.
+PowderCore is designed to integrate almost anywhere. The Rust backend exposes a clean, minimal C API that can be consumed from almost any environment. Making it a good reason to use it for the engine library itself.
 
 ### Rust
 
@@ -146,7 +152,7 @@ foreign import ccall "powder_world_step" c_powder_world_step :: Ptr World -> IO 
 
 ---
 
-## Future Goals/Features
+## Future Goals/Features (Coming Soon)
 
 * Shared reaction table (JSON-based)
 * Engine-level save/load and serialization
@@ -172,4 +178,4 @@ GitHub: [https://github.com/RobertFlexx](https://github.com/RobertFlexx)
 
 ---
 
-> **PowderCore** - Accidentally discovered, made awesome.
+> **PowderCore** - Accidentally discovered, designed with precision, and made          awesome.
