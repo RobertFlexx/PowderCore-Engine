@@ -12,7 +12,9 @@ It defines how every grain of sand falls, how fire spreads, how water cools lava
 
 And here’s the funny part: it wasn’t even supposed to exist.
 
-**PowderCore** was *accidentally created* after a physics bug in an ASCII image generator caused the ASCII characters to fly everywhere, simulating water (the first discovered physic). Instead of fixing that one bug, i built on it, and now the entire system of elemental interactions got abstracted into a universal backend engine. So now, the same logic powers *every* sandbox edition — by complete accident that spiraled into brilliance.
+**PowderCore** was *accidentally born* from a bug in an ASCII image generator. The characters started behaving like particles, moving and interacting like fluid. The first “discovered” element was water. Instead of fixing that bug, I built on it, gradually evolving it into a rudimentary physics system.
+
+Later, I rewrote the project in **C#** and **Rust** to test whether the strange physics behavior was language-dependent. It wasn’t — it was the engine’s logic itself. That revelation inspired me to create **multiple editions** across different languages, each exploring how diverse ecosystems handle the same physics model. Over time, this experiment turned into a dedicated engine: **PowderCore™**, a modular, language-agnostic physics framework that anyone can use.
 
 Whether you’re running a **native TUI**, a **JVM edition**, or a **.NET build**, PowderCore is the physics brain underneath it all.
 
@@ -37,7 +39,7 @@ Rust was chosen as the base for a few key reasons:
    Almost every modern language can call C-compatible functions (`extern "C"`), which Rust supports natively. That makes PowderCore a good *single source of truth* for physics across ecosystems.
 
 5. **It started from a bug, but Rust made it permanent**
-   The original cross-language bug that caused PowderCore to exist was caught because of Rust’s strict type system. Instead of deleting it, the system was expanded into a full modular engine.
+   Rust’s strict type system helped formalize what began as an unintentional simulation into a stable, extensible physics core.
 
 You can think of PowderCore as: **Rust inside, everyone else outside** — with C ABI glue in the middle.
 
@@ -184,9 +186,9 @@ foreign import ccall "powder_world_step" c_powder_world_step :: Ptr World -> IO 
 
 PowderCore™ isn’t just about simulating physics — it’s about **emergent behavior** born from chaos. Every bug, every experiment, and every falling grain has a story.
 
-The funny part? PowderCore itself **was a bug**. It began as an unintended result of shared code between early sandbox prototypes, when a physics desync between the Rust and C# builds forced a rewrite into one shared core. That rewrite became the backbone of every edition today.
+It began as an ASCII image generator that accidentally simulated physics. The first physic was *water*. Later, rewriting it in **Rust** and **C#** to test the behavior confirmed that it wasn’t language-specific — it was the logic itself. That realization inspired the creation of multiple editions, each in a new language, exploring how the same system behaves under different runtimes. Eventually, the idea matured into **PowderCore**, a standalone engine anyone could import, extend, or build on.
 
-A physics bug accidentally turned into a **universal physics engine**.
+A happy accident turned into a cross-language experiment — and then into a **universal physics engine**.
 
 ---
 
