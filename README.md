@@ -2,6 +2,7 @@
 > An engine extracted from my projects
 
 See the [GameHub](https://github.com/RobertFlexx/Powder-Sandbox-GameHub) for detailed information on the editions themselves.
+
 ---
 
 ## Overview
@@ -18,7 +19,7 @@ Later, I rewrote the project in **C#** and **Rust** to test whether the strange 
 
 ---
 
-## Core Principles
+## Core Principles (and why it was made in Rust)
 
 1. **Consistency**
    Identical behavior across all platforms.
