@@ -142,7 +142,7 @@ foreign import ccall "powder_world_step" c_powder_world_step :: Ptr World -> IO 
 | Scala Edition   | Scala    | [Powder-Sandbox-Scala-Edition](https://github.com/RobertFlexx/Powder-Sandbox-Scala-Edition)   |
 | Groovy Edition  | Groovy   | [Powder-Sandbox-Groovy-Edition](https://github.com/RobertFlexx/Powder-Sandbox-Groovy-Edition) |
 | C# Edition      | C#/.NET  | [Powder-Sandbox-CS-Edition](https://github.com/RobertFlexx/Powder-Sandbox-CS-Edition)         |
-| F# Edition      | F#/.NET  | [Power-Sandbox-F-Edition](https://github.com/RobertFlexx/Power-Sandbox-F-Edition)             |
+| F# Edition      | F#/.NET  | [Powder-Sandbox-F-Edition](https://github.com/RobertFlexx/Powder-Sandbox-F-Edition)             |
 
 ---
 
