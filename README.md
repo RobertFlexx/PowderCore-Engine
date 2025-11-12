@@ -2,6 +2,7 @@
 
 ### *The engine that powers every grain, spark, and flame across the Powder Sandbox universe.*
 
+See the [GameHub](https://github.com/RobertFlexx/Powder-Sandbox-GameHub) for detailed information on the editions themselves.
 ---
 
 ## Overview
