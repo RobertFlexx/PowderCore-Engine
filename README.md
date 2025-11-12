@@ -1,7 +1,10 @@
 # PowderCore&trade;: Universal Physics Engine
 > A homemade, physics engine extracted from my projects, to make this an independent, scalable, integrable, library made in Rust for stability, and memory safety.
+## The well-engineered core of Powder Sandbox
+
 
 See the [GameHub](https://github.com/RobertFlexx/Powder-Sandbox-GameHub) for detailed information on the editions themselves.
+
 
 ---
 
