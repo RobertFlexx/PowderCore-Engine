@@ -1,5 +1,5 @@
 // PowderCore - bare physics engine for Powder Sandbox
-//
+// All by me cuz im goated, yw
 // This file contains the *simulation logic only*:
 // - Element definitions
 // - Cell and World structures
@@ -10,9 +10,19 @@
 // There is NO rendering, input, or terminal code here.
 // You are expected to call World::step() from your own loop
 // and render cells however you like (ncurses, ANSI, GUI, etc).
+//
+// At the bottom of this file there is a small C ABI layer
+// (extern "C" + no_mangle) so the engine can be used from
+// any language that can call C functions.
+
+// ===== Imports for FFI / low-level ops =====
+
+use std::os::raw::c_void;
+use std::ptr;
 
 // ===== Elements =====
 
+#[repr(i32)] // stable underlying representation for FFI
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Element {
     Empty,
@@ -56,6 +66,7 @@ pub enum Element {
     Zombie,
 }
 
+#[repr(C)] // FFI-safe layout
 #[derive(Copy, Clone, Debug)]
 pub struct Cell {
     pub elem: Element,
@@ -91,7 +102,6 @@ impl Rng {
     }
 
     fn next_u32(&mut self) -> u32 {
-        // LCG: same style as classic rand() implementations
         self.state = self
             .state
             .wrapping_mul(1664525)
@@ -100,7 +110,6 @@ impl Rng {
     }
 
     fn range_i32(&mut self, min: i32, max: i32) -> i32 {
-        // inclusive range [min, max]
         let span = (max - min + 1).max(1) as u32;
         let v = self.next_u32() % span;
         min + v as i32
@@ -130,10 +139,12 @@ impl World {
     /// Create a new world with given width/height and RNG seed.
     /// All cells start as Empty.
     pub fn new(width: i32, height: i32, seed: u64) -> Self {
-        let size = (width.max(0) * height.max(0)) as usize;
+        let w = width.max(0);
+        let h = height.max(0);
+        let size = (w * h).max(0) as usize;
         World {
-            width: width.max(0),
-            height: height.max(0),
+            width: w,
+            height: h,
             cells: vec![Cell::default(); size],
             rng: Rng::new(seed),
         }
@@ -341,7 +352,6 @@ impl World {
         let mut x = cx;
         let mut y = cy;
 
-        // Fall straight down through empty or gas
         while y + 1 < self.height {
             let below_idx = self.idx(x, y + 1);
             let below = self.cells[below_idx].elem;
@@ -351,14 +361,12 @@ impl World {
             y += 1;
         }
 
-        // Fill the bolt path
         for yy in cy..=y {
             let idx = self.idx(x, yy);
             self.cells[idx].elem = Element::Lightning;
             self.cells[idx].life = 2;
         }
 
-        // Electrify water directly below impact
         if y + 1 < self.height {
             let idx_below = self.idx(x, y + 1);
             let cell = &mut self.cells[idx_below];
@@ -388,9 +396,7 @@ impl World {
                     | Element::Glass
                     | Element::Metal
                     | Element::Wire
-                    | Element::Ice => {
-                        // Explosion can't destroy these
-                    }
+                    | Element::Ice => {}
                     _ => {
                         let roll = self.rng.range_i32(1, 100);
                         if roll <= 50 {
@@ -416,7 +422,6 @@ impl World {
         let t = self.cells[idx0].elem;
         let mut moved = false;
 
-        // Fall straight down into empty or liquid
         if self.in_bounds(x, y + 1) {
             let idx_below = self.idx(x, y + 1);
             let below = self.cells[idx_below].elem;
@@ -427,7 +432,6 @@ impl World {
             }
         }
 
-        // Slide diagonally if straight down is blocked
         if !moved {
             let dir = if self.rng.chance(50) { 1 } else { -1 };
             for i in 0..2 {
@@ -451,7 +455,6 @@ impl World {
             updated[idx0] = true;
         }
 
-        // Snow melts near heat
         if t == Element::Snow {
             let mut melt = false;
             for dy in -1..=1 {
@@ -478,7 +481,6 @@ impl World {
             }
         }
 
-        // Seaweed seed: sand under persistent water, spaced apart
         if t == Element::Sand {
             let mut life = self.cells[idx0].life;
             if self.in_bounds(x, y - 1)
@@ -525,7 +527,6 @@ impl World {
         let t = self.cells[idx0].elem;
         let mut moved = false;
 
-        // Fall down through empty or gas, or heavier-over-lighter liquid swap
         if self.in_bounds(x, y + 1) {
             let idx_b = self.idx(x, y + 1);
             let b = self.cells[idx_b].elem;
@@ -540,7 +541,6 @@ impl World {
             }
         }
 
-        // Lateral flow
         if !moved {
             let mut order = [-1, 1];
             if self.rng.chance(50) {
@@ -571,7 +571,6 @@ impl World {
             updated[idx0] = true;
         }
 
-        // Neighbor interactions based on original element type
         for dy in -1..=1 {
             for dx in -1..=1 {
                 if dx == 0 && dy == 0 {
@@ -585,14 +584,12 @@ impl World {
                 let n_idx = self.idx(nx, ny);
                 let n = self.cells[n_idx];
 
-                // Water vs fire/lava
                 if t == Element::Water || t == Element::SaltWater {
                     if n.elem == Element::Fire {
                         let c = &mut self.cells[n_idx];
                         c.elem = Element::Smoke;
                         c.life = 15;
                     } else if n.elem == Element::Lava {
-                        // cool lava, sometimes big steam
                         {
                             let c = &mut self.cells[n_idx];
                             c.elem = Element::Stone;
@@ -609,7 +606,6 @@ impl World {
                     }
                 }
 
-                // Oil / Ethanol ignite
                 if t == Element::Oil || t == Element::Ethanol {
                     if n.elem == Element::Fire || n.elem == Element::Lava {
                         let self_cell = &mut self.cells[idx0];
@@ -618,7 +614,6 @@ impl World {
                     }
                 }
 
-                // Acid eats stuff
                 if t == Element::Acid {
                     if is_dissolvable(n.elem) {
                         if self.rng.chance(30) {
@@ -650,7 +645,6 @@ impl World {
                     }
                 }
 
-                // Lava interactions
                 if t == Element::Lava {
                     if is_flammable(n.elem) {
                         let c = &mut self.cells[n_idx];
@@ -683,7 +677,6 @@ impl World {
             }
         }
 
-        // Lava cools over time into stone
         if t == Element::Lava {
             let c = &mut self.cells[idx0];
             c.life += 1;
@@ -693,7 +686,6 @@ impl World {
             }
         }
 
-        // Hydrate dirt around water/saltwater
         if t == Element::Water || t == Element::SaltWater {
             for dy in -1..=1 {
                 for dx in -1..=1 {
@@ -712,7 +704,6 @@ impl World {
             }
         }
 
-        // Electrified water pulse: spreads charge + kills humans/zombies
         if (t == Element::Water || t == Element::SaltWater) && self.cells[idx0].life > 0 {
             let q = self.cells[idx0].life;
             for dy in -1..=1 {
@@ -754,7 +745,6 @@ impl World {
         let t = self.cells[idx0].elem;
         let mut moved = false;
 
-        // Try moving up (Hydrogen faster)
         let tries = if t == Element::Hydrogen { 2 } else { 1 };
         for _ in 0..tries {
             if self.in_bounds(x, y - 1)
@@ -768,7 +758,6 @@ impl World {
             }
         }
 
-        // Random sideways drift
         if !moved {
             let mut order = [-1, 1];
             if self.rng.chance(50) {
@@ -789,7 +778,6 @@ impl World {
             }
         }
 
-        // Hydrogen / generic Gas ignite near fire/lava
         if t == Element::Hydrogen || t == Element::Gas {
             for dy in -1..=1 {
                 for dx in -1..=1 {
@@ -815,7 +803,6 @@ impl World {
             }
         }
 
-        // Chlorine harms plants -> toxic gas
         if t == Element::Chlorine {
             for dy in -1..=1 {
                 for dx in -1..=1 {
@@ -834,7 +821,6 @@ impl World {
             }
         }
 
-        // Lifetime decay & condensation
         let c = &mut self.cells[idx0];
         c.life -= 1;
         if c.life <= 0 {
@@ -870,7 +856,6 @@ impl World {
     fn step_fire(&mut self, x: i32, y: i32, updated: &mut [bool]) {
         let idx0 = self.idx(x, y);
 
-        // Chance to flicker upward
         if self.in_bounds(x, y - 1) {
             let idx_up = self.idx(x, y - 1);
             let e_up = self.cells[idx_up].elem;
@@ -880,7 +865,6 @@ impl World {
             }
         }
 
-        // Interact with neighbors
         for dy in -1..=1 {
             for dx in -1..=1 {
                 if dx == 0 && dy == 0 {
@@ -917,7 +901,6 @@ impl World {
             }
         }
 
-        // Fire burns out into smoke
         let c = &mut self.cells[idx0];
         c.life -= 1;
         if c.life <= 0 {
@@ -978,7 +961,6 @@ impl World {
     fn step_human(&mut self, x: i32, y: i32, updated: &mut [bool]) {
         let idx0 = self.idx(x, y);
 
-        // Hazard kills human (including electrified water)
         let mut killed = false;
         for dy in -1..=1 {
             for dx in -1..=1 {
@@ -1008,13 +990,11 @@ impl World {
             return;
         }
 
-        // Animation tick
         {
             let c = &mut self.cells[idx0];
             c.life += 1;
         }
 
-        // Gravity: only fall through air/gas
         if self.in_bounds(x, y + 1) {
             let idx_b = self.idx(x, y + 1);
             let b = self.cells[idx_b].elem;
@@ -1025,7 +1005,6 @@ impl World {
             }
         }
 
-        // Look for nearest zombie in a radius
         let mut zx = 0;
         let mut zy = 0;
         let mut seen = false;
@@ -1048,7 +1027,6 @@ impl World {
             }
         }
 
-        // Attack adjacent zombies
         for dy in -1..=1 {
             for dx in -1..=1 {
                 if dx == 0 && dy == 0 {
@@ -1074,14 +1052,13 @@ impl World {
             }
         }
 
-        // Movement: run away from zombie if seen
         let mut dir = if self.rng.chance(50) { 1 } else { -1 };
         if seen {
+            let _ = zy; // unused but kept to mirror logic; could be used for fancier AI
             dir = if zx < x { 1 } else { -1 };
         }
 
         if !self.try_walk(x, y, x + dir, y) {
-            // small jump over obstacle
             if self.in_bounds(x + dir, y - 1)
                 && self.cells[self.idx(x + dir, y - 1)].elem == Element::Empty
                 && self.cells[self.idx(x, y - 1)].elem == Element::Empty
@@ -1101,7 +1078,6 @@ impl World {
     fn step_zombie(&mut self, x: i32, y: i32, updated: &mut [bool]) {
         let idx0 = self.idx(x, y);
 
-        // Hazards (including electrified water)
         {
             let mut killed = false;
             for dy in -1..=1 {
@@ -1139,7 +1115,6 @@ impl World {
             c.life += 1;
         }
 
-        // Gravity
         if self.in_bounds(x, y + 1) {
             let idx_b = self.idx(x, y + 1);
             let b = self.cells[idx_b].elem;
@@ -1150,7 +1125,6 @@ impl World {
             }
         }
 
-        // Look for human
         let mut hx = 0;
         let mut hy = 0;
         let mut seen = false;
@@ -1173,7 +1147,6 @@ impl World {
             }
         }
 
-        // Infect / attack adjacent humans
         for dy in -1..=1 {
             for dx in -1..=1 {
                 if dx == 0 && dy == 0 {
@@ -1199,9 +1172,9 @@ impl World {
             }
         }
 
-        // Move towards human or wander
         let mut dir = if self.rng.chance(50) { 1 } else { -1 };
         if seen {
+            let _ = hy;
             dir = if hx > x { 1 } else { -1 };
         }
 
@@ -1259,7 +1232,6 @@ impl World {
         let idx0 = self.idx(x, y);
         let t = self.cells[idx0].elem;
 
-        // Burning check
         for dy in -1..=1 {
             for dx in -1..=1 {
                 if dx == 0 && dy == 0 {
@@ -1285,7 +1257,6 @@ impl World {
         }
 
         if t == Element::Plant {
-            // Grows upward from WetDirt
             let good_soil = self.in_bounds(x, y + 1)
                 && self.cells[self.idx(x, y + 1)].elem == Element::WetDirt;
             if good_soil && self.rng.chance(2) {
@@ -1300,7 +1271,6 @@ impl World {
                 }
             }
         } else {
-            // Seaweed: grows upward while underwater
             let underwater = self.in_bounds(x, y - 1)
                 && (self.cells[self.idx(x, y - 1)].elem == Element::Water
                     || self.cells[self.idx(x, y - 1)].elem == Element::SaltWater);
@@ -1566,7 +1536,7 @@ fn is_hazard(e: Element) -> bool {
     )
 }
 
-// ===== Public helpers for UI layers =====
+// ===== Public helpers for UI layers (Rust-side) =====
 
 /// Human-readable element name (same text as C++ version).
 pub fn name_of(e: Element) -> &'static str {
@@ -1611,22 +1581,18 @@ pub fn name_of(e: Element) -> &'static str {
 /// Simple numeric "palette index" the frontend can map to colors.
 /// Values mirror the C++ classic ncurses color pairs (1..9).
 pub fn color_of(e: Element, life: i32) -> u8 {
-    // Electrified water pulses are yellow (9)
     if (e == Element::Water || e == Element::SaltWater) && life > 0 {
         return 9;
     }
 
     match e {
         Element::Empty => 1,
-        // yellow-ish powders / dirt
         Element::Sand | Element::Gunpowder | Element::Snow | Element::Dirt => 2,
-        // cyan water-ish
         Element::Water
         | Element::SaltWater
         | Element::Steam
         | Element::Ice
         | Element::Ethanol => 3,
-        // white solids
         Element::Stone
         | Element::Glass
         | Element::Wall
@@ -1634,15 +1600,10 @@ pub fn color_of(e: Element, life: i32) -> u8 {
         | Element::Wire
         | Element::Coal
         | Element::WetDirt => 4,
-        // green stuff & humans
         Element::Wood | Element::Plant | Element::Seaweed | Element::Human => 5,
-        // red danger
         Element::Fire | Element::Lava | Element::Zombie => 6,
-        // magenta haze
         Element::Smoke | Element::Ash | Element::Gas | Element::Hydrogen => 7,
-        // blue heavy liquids
         Element::Oil | Element::Mercury => 8,
-        // green/yellow chem/bolt
         Element::Acid | Element::ToxicGas | Element::Chlorine | Element::Lightning => 9,
     }
 }
@@ -1683,7 +1644,6 @@ pub fn glyph_of(e: Element, life: i32) -> char {
         Element::Fire => '*',
         Element::Lightning => '|',
         Element::Human => {
-            // little stick-figure animation
             if (life / 6) % 2 != 0 {
                 'y'
             } else {
@@ -1699,3 +1659,165 @@ pub fn glyph_of(e: Element, life: i32) -> char {
         }
     }
 }
+
+// ===== C ABI LAYER (for any language via FFI) =====
+//
+// Build as cdylib/staticlib and use these from C, C++, Python, Nim, Kotlin, etc.
+// All functions are null-safe and do nothing if passed a null pointer.
+
+/// Opaque handle type when viewed from C/other languages.
+pub type PowderWorldHandle = *mut c_void;
+
+#[no_mangle]
+pub extern "C" fn powder_world_new(width: i32, height: i32, seed: u64) -> PowderWorldHandle {
+    let w = World::new(width, height, seed);
+    let boxed: Box<World> = Box::new(w);
+    Box::into_raw(boxed) as PowderWorldHandle
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_free(handle: PowderWorldHandle) {
+    if handle.is_null() {
+        return;
+    }
+    unsafe {
+        drop(Box::from_raw(handle as *mut World));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_step(handle: PowderWorldHandle) {
+    if handle.is_null() {
+        return;
+    }
+    let w = unsafe { &mut *(handle as *mut World) };
+    w.step();
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_clear(handle: PowderWorldHandle) {
+    if handle.is_null() {
+        return;
+    }
+    let w = unsafe { &mut *(handle as *mut World) };
+    w.clear();
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_get_size(
+    handle: PowderWorldHandle,
+    out_width: *mut i32,
+    out_height: *mut i32,
+) {
+    if handle.is_null() || out_width.is_null() || out_height.is_null() {
+        return;
+    }
+    let w = unsafe { &*(handle as *const World) };
+    unsafe {
+        *out_width = w.width();
+        *out_height = w.height();
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_resize(
+    handle: PowderWorldHandle,
+    width: i32,
+    height: i32,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let w = unsafe { &mut *(handle as *mut World) };
+    w.resize(width, height);
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_place_brush(
+    handle: PowderWorldHandle,
+    cx: i32,
+    cy: i32,
+    rad: i32,
+    elem: Element,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let w = unsafe { &mut *(handle as *mut World) };
+    w.place_brush(cx, cy, rad, elem);
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_get_cell(
+    handle: PowderWorldHandle,
+    x: i32,
+    y: i32,
+    out_cell: *mut Cell,
+) -> i32 {
+    if handle.is_null() || out_cell.is_null() {
+        return 0;
+    }
+    let w = unsafe { &*(handle as *const World) };
+    if !w.in_bounds(x, y) {
+        return 0;
+    }
+    let c = w.get_cell(x, y);
+    unsafe {
+        *out_cell = c;
+    }
+    1
+}
+
+#[no_mangle]
+pub extern "C" fn powder_world_set_cell(
+    handle: PowderWorldHandle,
+    x: i32,
+    y: i32,
+    cell: Cell,
+) -> i32 {
+    if handle.is_null() {
+        return 0;
+    }
+    let w = unsafe { &mut *(handle as *mut World) };
+    if let Some(c) = w.get_cell_mut(x, y) {
+        *c = cell;
+        1
+    } else {
+        0
+    }
+}
+
+/// Export the internal cell buffer in row-major order (y * width + x).
+/// `out_cells` must point to a buffer of at least `max_len` Cells.
+/// Returns the number of cells written.
+#[no_mangle]
+pub extern "C" fn powder_world_export_cells(
+    handle: PowderWorldHandle,
+    out_cells: *mut Cell,
+    max_len: usize,
+) -> usize {
+    if handle.is_null() || out_cells.is_null() {
+        return 0;
+    }
+    let w = unsafe { &*(handle as *const World) };
+    let total = (w.width().max(0) * w.height().max(0)) as usize;
+    let n = total.min(max_len);
+    unsafe {
+        ptr::copy_nonoverlapping(w.cells.as_ptr(), out_cells, n);
+    }
+    n
+}
+
+/// Cheap wrappers for glyph/color so other languages can use the same mapping
+/// without re-implementing logic, if they want. i tried my best
+
+#[no_mangle]
+pub extern "C" fn powder_color_of(elem: Element, life: i32) -> u8 {
+    color_of(elem, life)
+}
+
+#[no_mangle]
+pub extern "C" fn powder_glyph_of(elem: Element, life: i32) -> u8 {
+    glyph_of(elem, life) as u8
+}
+// please file an issue in github if there is any sort of issue, thanks
